@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบควิซออนไลน์</title>
+    <script>
+        function saveToLocalStorage(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+
+        function getFromLocalStorage(key) {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        }
+
+        function initializeQuiz() {
+            const quiz = {
+                id: "quiz1",
+                questions: [
+                    { id: 1, text: "HTML ย่อมาจากอะไร?", choices: ["Hyper Text Markup Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"], correct: "Hyper Text Markup Language" },
+                    { id: 2, text: "JavaScript ใช้ทำอะไร?", choices: ["ออกแบบหน้าเว็บ", "เขียนโปรแกรมฝั่งเซิร์ฟเวอร์", "เพิ่มความโต้ตอบให้หน้าเว็บ"], correct: "เพิ่มความโต้ตอบให้หน้าเว็บ" },
+                    { id: 3, text: "CSS ใช้ทำอะไร?", choices: ["กำหนดโครงสร้างเว็บ", "กำหนดรูปแบบการแสดงผล", "ใช้คำนวณค่าทางคณิตศาสตร์"], correct: "กำหนดรูปแบบการแสดงผล" },
+                    { id: 4, text: "DOM ย่อมาจากอะไร?", choices: ["Document Object Model", "Data Object Management", "Digital Object Mapping"], correct: "Document Object Model" },
+                    { id: 5, text: "JavaScript เป็นภาษาประเภทใด?", choices: ["Compiled", "Interpreted", "Both"], correct: "Interpreted" }
+                ],
+                timeLimit: 60,
+                passingScore: 60
+            };
+            saveToLocalStorage("quizData", quiz);
+        }
+
+        function startQuiz() {
+            const quizData = getFromLocalStorage("quizData");
+            if (!quizData) {
+                alert("ไม่มีข้อมูลควิซ กรุณารีเฟรช");
+                return;
+            }
+
+            const selectedQuestions = quizData.questions.sort(() => 0.5 - Math.random()).slice(0, 5);
+            saveToLocalStorage("currentQuiz", { questions: selectedQuestions, startTime: Date.now() });
+
+            displayQuiz(selectedQuestions);
+            startTimer(quizData.timeLimit);
+        }
+
+        function displayQuiz(questions) {
+            const quizContainer = document.getElementById("quiz-container");
+            quizContainer.innerHTML = "";
+
+            questions.forEach((q, index) => {
+                const questionElement = document.createElement("div");
+                questionElement.innerHTML = `<p>${index + 1}. ${q.text}</p>`;
+                q.choices.forEach(choice => {
+                    questionElement.innerHTML += `<label>
+                        <input type="radio" name="q${q.id}" value="${choice}"> ${choice}
+                    </label><br>`;
+                });
+                quizContainer.appendChild(questionElement);
+            });
+
+            const submitButton = document.createElement("button");
+            submitButton.textContent = "ส่งคำตอบ";
+            submitButton.onclick = submitAnswer;
+            quizContainer.appendChild(submitButton);
+        }
+
+        function startTimer(timeLimit) {
+            let timeLeft = timeLimit;
+            const timerElement = document.getElementById("timer");
+
+            const interval = setInterval(() => {
+                timerElement.textContent = `เวลาที่เหลือ: ${timeLeft} วินาที`;
+                timeLeft--;
+
+                if (timeLeft < 0) {
+                    clearInterval(interval);
+                    submitAnswer();
+                }
+            }, 1000);
+        }
+
+        function submitAnswer() {
+            const quizData = getFromLocalStorage("currentQuiz");
+            if (!quizData) return;
+
+            let score = 0;
+            let unanswered = 0;
+            let answers = [];
+
+            quizData.questions.forEach(q => {
+                const selectedOption = document.querySelector(`input[name="q${q.id}"]:checked`);
+                if (!selectedOption) {
+                    unanswered++;
+                } else {
+                    if (selectedOption.value === q.correct) {
+                        score += 20;
+                    }
+                    answers.push({ question: q.text, selected: selectedOption.value, correct: q.correct });
+                }
+            });
+
+            if (unanswered > 0) {
+                alert("กรุณาตอบให้ครบทุกข้อก่อนส่งคำตอบ!");
+                return;
+            }
+
+            saveToLocalStorage("quizResult", { score: score, passed: score >= 60, answers: answers });
+            showResults();
+        }
+
+        function showResults() {
+            const result = getFromLocalStorage("quizResult");
+            if (!result) return;
+
+            const resultContainer = document.getElementById("result-container");
+            let answerDetails = "<h3>เฉลย</h3>";
+
+            result.answers.forEach(ans => {
+                answerDetails += `<p><b>${ans.question}</b><br> 
+                    ✅ คำตอบที่ถูกต้อง: ${ans.correct} <br>
+                    ❌ คำตอบของคุณ: ${ans.selected}</p>`;
+            });
+
+            resultContainer.innerHTML = `
+                <h3>ผลลัพธ์:</h3>
+                <p>คะแนนที่ได้: ${result.score}</p>
+                <p>สถานะ: ${result.passed ? "ผ่าน" : "ไม่ผ่าน"}</p>
+                ${answerDetails}
+                <button onclick="startQuiz()">เริ่มใหม่</button>
+            `;
+        }
+    </script>
+</head>
+<body>
+    <h1>ระบบควิซออนไลน์</h1>
+    <button onclick="initializeQuiz()">โหลดควิซ</button>
+    <button onclick="startQuiz()">เริ่มควิซ</button>
+    <p id="timer"></p>
+    <div id="quiz-container"></div>
+    <div id="result-container"></div>
+</body>
+</html>
